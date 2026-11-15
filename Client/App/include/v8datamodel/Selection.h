@@ -1,7 +1,6 @@
 #ifndef V8DATAMODEL_SELECTION_H
 #define V8DATAMODEL_SELECTION_H
 
-#include "compat.h"
 #include "decomp.h"
 #include "util/Events.h"
 #include "util/Handle.h"

@@ -1,5 +1,0 @@
-Checks: >
-  -*,
-  readability-redundant-inline-specifier
-WarningsAsErrors: '-*,readability-redundant-inline-specifier'
-HeaderFilterRegex: '.*[/\\](common|WebService|util)[/\\].*'

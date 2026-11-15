@@ -1,6 +1,5 @@
 #include "util/ContentProvider.h"
 
-#include "compat.h"
 #include "decomp.h"
 #include "util/FileSystem.h"
 #include "util/Http.h"

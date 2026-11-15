@@ -56,7 +56,7 @@ Functions the linker merged into one share an address. Mark them `FOLDED`, they 
 
 ### Formatting
 
-Run [clang-format](https://clang.llvm.org/docs/ClangFormat.html) and [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) with the configuration files in the repository root. Most editors can [do this for you](https://clang.llvm.org/docs/ClangFormat.html#vim-integration). CI uses clang-format 22.
+Run [clang-format](https://clang.llvm.org/docs/ClangFormat.html) with the configuration file in the repository root. Most editors can [do this for you](https://clang.llvm.org/docs/ClangFormat.html#vim-integration). CI uses clang-format 22.
 
 ### Naming
 

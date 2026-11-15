@@ -7,38 +7,6 @@ jobs:
     name: Download original binaries
     uses: ./.github/workflows/robloxbin.yml
 
-  build-current-toolchain:
-    name: Current MSVC
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-
-      - name: Setup Ninja
-        uses: ./.github/actions/setup-ninja
-
-      - name: Setup vcvars
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64_x86
-
-      - name: Install LLVM
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: '21'
-
-      - name: Build
-        run: |
-          cmake -S . -B build -GNinja `
-            -DCMAKE_C_COMPILER=cl `
-            -DCMAKE_CXX_COMPILER=cl `
-            -DCMAKE_BUILD_TYPE=Debug `
-            -DENABLE_CLANG_TIDY=ON `
-            -Werror=dev
-          cmake --build build --target app network -- -k0
-
   build:
     name: 'MSVC 8.0 SP1'
     runs-on: windows-latest

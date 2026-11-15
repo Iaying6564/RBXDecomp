@@ -60,13 +60,13 @@ cmake -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build
 ```
 
-Use the portable [MSVC800-SP1](https://github.com/Asphaltian/MSVC800-SP1). Call `vsvars32.bat`; `VC\bin\vcvars32.bat` needs a registered install. RTM (`.42`) doesn't reproduce the original's codegen. Decomp-specific flags sit behind `MSVC_FOR_DECOMP`, which is only true for cl 14.x.
+Use the portable [MSVC800-SP1](https://github.com/Asphaltian/MSVC800-SP1). Call `vsvars32.bat`; `VC\bin\vcvars32.bat` needs a registered install. RTM (`.42`) doesn't reproduce the original's codegen. CMake refuses anything but cl 14.x.
 
 > **Note:** after anything that moves an include, delete `build/` before you trust a green build. The object that breaks is the one that didn't need recompiling.
 
 ## Checks
 
-CI runs eight checks. Run all of them before you commit, not just the score.
+CI runs seven checks. Run all of them before you commit, not just the score.
 
 ```bash
 reccmp-reccmp   --target WEBSERVICE --nolib                       # score
@@ -79,10 +79,9 @@ python tools/check_folded.py --target WEBSERVICE
 python tools/reccmp_addr_padding.py
 ```
 
-CI also scores `--target ROBLOX` and diffs both targets against `main`. Two more checks run in their own jobs:
+CI also scores `--target ROBLOX` and diffs both targets against `main`. One more check runs in its own job:
 
 - **ncc** (`tools/ncc/ncc.py`) needs real LLVM's `libclang.dll` and the `clang==21.*` bindings. It exits 0 either way; the finding count is the verdict. A recovered name that trips the style is a style-file change, never a rename.
-- **Current MSVC** builds `app` and `network` with a modern cl and clang-tidy (`cmake -GNinja -DENABLE_CLANG_TIDY=ON` from an `amd64_x86` vcvars shell). It's the only check that sees conformance problems MSVC 8 lets through, so run it whenever a class or template lands.
 
 What each one is actually telling you:
 
@@ -476,7 +475,7 @@ Client/Rendering/AppDraw/    # appdraw.lib
 Client/Rendering/RenderLib/  # renderlib.lib
 Client/win/                  # The client; ErrorUploader, LogManager and VersionInfo also build into WebService
 WebService/                  # The DLL, plus library_msvc.h and WebServiceMaps.cpp
-util/                        # decomp.h, decomp.cpp, compat.h
+util/                        # decomp.h, decomp.cpp
 3rdparty/                    # SDKs and libraries built against from outside the tree
 reccmp/                      # The CSVs reccmp reads for the original's side
 cmake/                       # reccmp CMake integration
