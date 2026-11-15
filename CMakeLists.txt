@@ -24,7 +24,7 @@ if (ENABLE_CLANG_TIDY)
 endif()
 
 math(EXPR bits "8 * ${CMAKE_SIZEOF_VOID_P}")
-message(STATUS "Building ${bits}-bit RBXGS")
+message(STATUS "Building ${bits}-bit binaries")
 if (NOT bits EQUAL 32)
   message(WARNING "Only 32-bit binaries are supported")
 endif()
@@ -97,6 +97,11 @@ set(OPENRBX_G3D_EXTRA_INCLUDE_DIRS
 add_library(fmodex IMPORTED UNKNOWN)
 set_property(TARGET fmodex PROPERTY IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/Client/fmod/api/lib/fmodex_vc.lib")
 set_property(TARGET fmodex PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/Client/fmod/api/inc")
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/fmodex.dll"
+  COMMAND "${CMAKE_COMMAND}" -E copy "${PROJECT_SOURCE_DIR}/Client/fmod/api/fmodex.dll" "${PROJECT_BINARY_DIR}"
+  DEPENDS "${PROJECT_SOURCE_DIR}/Client/fmod/api/fmodex.dll"
+)
+add_custom_target(fmodex_dll DEPENDS "${PROJECT_BINARY_DIR}/fmodex.dll")
 
 add_subdirectory(3rdparty)
 
@@ -845,17 +850,6 @@ if (MSVC_FOR_DECOMP)
   set_property(TARGET toolkitpro PROPERTY OUTPUT_NAME "ToolkitPro1121vc80DS")
 
   set(OPENRBX_OGRE "${PROJECT_SOURCE_DIR}/Client/Rendering/OgreSDK")
-  file(READ "${OPENRBX_OGRE}/lib/rgmain.def" OPENRBX_RGMAIN_DEF)
-  string(REGEX REPLACE " @[0-9]+" "" OPENRBX_RGMAIN_DEF "${OPENRBX_RGMAIN_DEF}")
-  file(WRITE "${CMAKE_BINARY_DIR}/rgmain.def" "${OPENRBX_RGMAIN_DEF}")
-  add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/rgmain.lib"
-    COMMAND lib /nologo /machine:x86 "/def:${CMAKE_BINARY_DIR}/rgmain.def" "/out:${CMAKE_BINARY_DIR}/rgmain.lib"
-    DEPENDS "${OPENRBX_OGRE}/lib/rgmain.def"
-  )
-  add_custom_target(rgmain_implib DEPENDS "${CMAKE_BINARY_DIR}/rgmain.lib")
-  add_library(rgmain UNKNOWN IMPORTED)
-  set_property(TARGET rgmain PROPERTY IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/rgmain.lib")
-  add_dependencies(rgmain rgmain_implib)
 endif()
 
 set(OPENRBX_WEBSERVICE_SOURCES
@@ -895,11 +889,7 @@ target_link_libraries(webservice PRIVATE
 )
 
 target_link_libraries(webservice PRIVATE fmodex)
-add_custom_command(TARGET webservice POST_BUILD
-  COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-    "${PROJECT_SOURCE_DIR}/Client/fmod/api/fmodex.dll" "$<TARGET_FILE_DIR:webservice>"
-  COMMENT "Copying fmodex.dll next to WebService.dll"
-)
+add_dependencies(webservice fmodex_dll)
 
 target_link_libraries(webservice PRIVATE
   advapi32
@@ -929,7 +919,6 @@ set_property(TARGET webservice PROPERTY OUTPUT_NAME "WebService")
 set_property(TARGET webservice PROPERTY PREFIX "")
 set_property(TARGET webservice PROPERTY SUFFIX ".dll")
 
-add_custom_target(rbxgs DEPENDS webservice)
 
 if (MSVC_FOR_DECOMP)
   set(OPENRBX_ROBLOX_MIDL_DIR "${CMAKE_CURRENT_BINARY_DIR}/roblox_midl")
@@ -1025,6 +1014,7 @@ if (MSVC_FOR_DECOMP)
     endif()
   endforeach()
 
+  add_dependencies(roblox fmodex_dll)
   target_link_libraries(roblox PRIVATE
     toolkitpro
     rgmain
@@ -1062,7 +1052,7 @@ if (MSVC_FOR_DECOMP)
   set_property(TARGET roblox PROPERTY OUTPUT_NAME "Roblox")
 
   set_property(TARGET roblox appdraw_client PROPERTY RULE_LAUNCH_COMPILE
-    "\"${CMAKE_COMMAND}\" -DSOURCE=<SOURCE> -DLANGUAGE=<LANGUAGE> -P \"${PROJECT_SOURCE_DIR}/cmake/compile_relative.cmake\" --"
+    "\"${CMAKE_COMMAND}\" -DSOURCE=<SOURCE> -DLANGUAGE=<LANGUAGE> -P \"${PROJECT_SOURCE_DIR}/cmake/compile-relative.cmake\" --"
   )
 endif()
 
