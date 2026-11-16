@@ -324,7 +324,7 @@ void RenderScene::markStencilShadows(G3D::RenderDevice* rd, const G3D::GCamera& 
 	rd->popState();
 }
 
-// STUB: WEBSERVICE 0x101f1960
+// FUNCTION: WEBSERVICE 0x101f1960
 // STUB: ROBLOX 0x0049f7d0
 void RenderScene::allocateProxies(G3D::RenderDevice* rd, const G3D::GCamera& camera)
 {
