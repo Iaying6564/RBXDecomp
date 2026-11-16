@@ -1533,7 +1533,9 @@ inline void Replicator::ChangePropertyItem::write(RakNet::BitStream& bitStream)
 
 		replicator.serializeId(bitStream, instance.get());
 
-		replicator.propNames.send(bitStream, name.toString());
+		SharedStringDictionary& names = replicator.propNames;
+
+		names.send(bitStream, name.toString());
 
 		if (NetworkSettings::singleton().printProperties) {
 			StandardOut::singleton()->print(
@@ -1594,7 +1596,9 @@ void Replicator::readProperties(RakNet::BitStream& inBitstream, Instance* instan
 		Reflection::Property property = *iter;
 
 		if (property.getDescriptor().canStreamWrite()) {
-			if (typeid(bool) == property.getDescriptor().type.type) {
+			const Reflection::Type& type = property.getDescriptor().type;
+
+			if (typeid(bool) == type.type) {
 				deserializeValue(inBitstream, property);
 			}
 			else {
@@ -1762,7 +1766,9 @@ void Replicator::writeProperties(Instance* instance, RakNet::BitStream& outBitst
 		const Reflection::PropertyDescriptor& descriptor = property.getDescriptor();
 
 		if (descriptor.canStreamWrite()) {
-			if (typeid(bool) == descriptor.type.type) {
+			const Reflection::Type& type = descriptor.type;
+
+			if (typeid(bool) == type.type) {
 				serializeValue(property, false, outBitstream);
 				if (NetworkSettings::singleton().printInstances && NetworkSettings::singleton().printProperties) {
 					StandardOut::singleton()->print(
@@ -1883,7 +1889,7 @@ void Replicator::receiveData(Packet* packet)
 	}
 }
 
-// STUB: WEBSERVICE 0x101a9220
+// FUNCTION: WEBSERVICE 0x101a9220
 // STUB: ROBLOX 0x004d2260
 PluginReceiveResult Replicator::OnReceive(RakPeerInterface* peer, Packet* packet)
 {
@@ -1901,13 +1907,13 @@ PluginReceiveResult Replicator::OnReceive(RakPeerInterface* peer, Packet* packet
 				);
 				event_Disconnection.fire(this, packet->systemAddress.ToString(), true);
 				disconnected = true;
-				break;
+				return RR_CONTINUE_PROCESSING;
 
 			case ID_DISCONNECTION_NOTIFICATION:
 				StandardOut::singleton()->print(MESSAGE_INFO, "Disconnect from %s", packet->systemAddress.ToString());
 				event_Disconnection.fire(this, packet->systemAddress.ToString(), false);
 				disconnected = true;
-				break;
+				return RR_CONTINUE_PROCESSING;
 
 			case ID_DATA:
 				receiveData(packet);
