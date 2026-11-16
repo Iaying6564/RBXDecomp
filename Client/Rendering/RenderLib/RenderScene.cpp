@@ -359,9 +359,7 @@ void RenderScene::allocateProxies(G3D::RenderDevice* rd, const G3D::GCamera& cam
 				shadowCachingChunkArray.append(chunkArray[p]);
 			}
 			else {
-				shadowProxyArray.resize(shadowProxyArray.size() + 1, false);
-
-				RenderSurface& shadowProxy = shadowProxyArray.last();
+				RenderSurface& shadowProxy = shadowProxyArray.next();
 				shadowProxy.material = NULL;
 				shadowProxy.cframe = cframe;
 				shadowProxy.mesh = chunk->getMesh()->dropShadowMesh().getPointer();
