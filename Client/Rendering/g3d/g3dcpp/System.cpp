@@ -1,3 +1,4 @@
+#line 1 ".\\g3dcpp\\System.cpp"
 /** 
   @file System.cpp
  
@@ -1010,8 +1011,6 @@ void initTime() {
         realWorldGetTickTime0 = local;
     #endif
 }
-
-
 RealTime System::getTick() { 
     init();
     #ifdef G3D_WIN32
