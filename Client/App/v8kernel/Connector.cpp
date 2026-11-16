@@ -44,7 +44,7 @@ float PointToPointBreakConnector::potentialEnergy()
 {
 	Vector3 delta = point1->getWorldPos() - point0->getWorldPos();
 
-	float length = delta.magnitude();
+	float length = sqrtf(delta.y * delta.y + delta.z * delta.z + delta.x * delta.x);
 
 	return k * length * length * 0.5f;
 }
@@ -114,8 +114,10 @@ void RotateConnector::computeForce(float dt, bool throttling)
 
 	Vector3 torque = normal * torqueMag;
 
-	ref0->getBody()->accumulateTorque(-torque);
-	ref1->getBody()->accumulateTorque(torque);
+	const Vector3& negativeTorque = -torque;
+	ref0->getBody()->accumulateTorque(negativeTorque);
+	const Vector3& positiveTorque = torque;
+	ref1->getBody()->accumulateTorque(positiveTorque);
 }
 
 // FUNCTION: WEBSERVICE 0x1011e1f0
