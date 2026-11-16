@@ -23,23 +23,23 @@ Sim::AssemblyState SleepStage::getState(Assembly* assembly)
 																		   : Sim::ANCHORED;
 }
 
-SleepStage::AssemblySet* SleepStage::stateToSet(Sim::AssemblyState state)
+SleepStage::AssemblySet& SleepStage::stateToSet(Sim::AssemblyState state)
 {
 	switch (state) {
 	case Sim::RECURSIVE_WAKE_PENDING:
-		return &recursiveWakePending;
+		return recursiveWakePending;
 
 	case Sim::WAKE_PENDING:
-		return &wakePending;
+		return wakePending;
 
 	case Sim::SLEEPING_CHECKING:
-		return &sleepingChecking;
+		return sleepingChecking;
 
 	case Sim::SLEEPING_DEEPLY:
-		return &sleepingDeeply;
+		return sleepingDeeply;
 
 	default:
-		return &awake;
+		return awake;
 	}
 }
 
@@ -280,12 +280,12 @@ void SleepStage::changeAssemblyState(Assembly* a, Sim::AssemblyState newState)
 {
 	Sim::AssemblyState oldState = getState(a);
 
-	AssemblySet* oldSet = stateToSet(oldState);
-	AssemblySet* newSet = stateToSet(newState);
+	AssemblySet& oldSet = stateToSet(oldState);
+	AssemblySet& newSet = stateToSet(newState);
 
-	oldSet->erase(a);
+	oldSet.erase(a);
 
-	newSet->insert(a);
+	newSet.insert(a);
 
 	if ((oldState == Sim::SLEEPING_CHECKING || oldState == Sim::SLEEPING_DEEPLY) &&
 		newState != Sim::SLEEPING_CHECKING && newState != Sim::SLEEPING_DEEPLY) {
@@ -314,11 +314,29 @@ void SleepStage::changeAssemblyState(Assembly* a, Sim::AssemblyState newState)
 }
 
 // STUB: WEBSERVICE 0x10119970
-// STUB: ROBLOX 0x00643460
+// FUNCTION: ROBLOX 0x00643460
 void SleepStage::onAssemblyRemoving(Assembly* assembly)
 {
 	if (getState(assembly) != Sim::SLEEPING_DEEPLY) {
-		changeAssemblyState(assembly, Sim::SLEEPING_DEEPLY);
+		Assembly* a = assembly;
+		Sim::AssemblyState newState = Sim::SLEEPING_DEEPLY;
+
+		Sim::AssemblyState oldState = getState(a);
+
+		AssemblySet& oldSet = stateToSet(oldState);
+		AssemblySet& newSet = stateToSet(newState);
+
+		oldSet.erase(a);
+		newSet.insert(a);
+
+		a->getAssemblyPrimitive()->getBody()->setVelocity(Velocity::zero());
+
+		if (assembly->downstreamOfStage(this)) {
+			static_cast<SimJobStage*>(getDownstream())->onAssemblyRemoving(a);
+		}
+
+		resetSleepCount(a);
+		a->getSleepInfo()->state = newState;
 	}
 
 	sleepingDeeply.erase(assembly);
@@ -516,7 +534,7 @@ void SleepStage::wakeEvent(Edge* e)
 	}
 }
 
-// STUB: WEBSERVICE 0x1011a500
+// FUNCTION: WEBSERVICE 0x1011a500
 // STUB: ROBLOX 0x00643ff0
 void SleepStage::changeContactState(Contact* c, Sim::EdgeState newState)
 {
@@ -551,8 +569,10 @@ void SleepStage::changeContactState(Contact* c, Sim::EdgeState newState)
 		}
 	}
 
-	if (wasTouching != isTouching) {
-		if (wasTouching) {
+	bool wasInKernel = currentState == Sim::TOUCHING;
+	bool desiredInKernel = newState == Sim::TOUCHING;
+	if (wasInKernel != desiredInKernel) {
+		if (wasInKernel) {
 			getDownstreamWS()->onEdgeRemoving(c);
 			numContactsInKernel--;
 		}
@@ -688,7 +708,7 @@ void SleepStage::stepContacts(ContactList& contacts)
 }
 
 // STUB: WEBSERVICE 0x1011ab10
-// STUB: ROBLOX 0x00644600
+// FUNCTION: ROBLOX 0x00644600
 void SleepStage::wakeAssemblyAndNeighbors(Assembly* assembly, int recurseDepth)
 {
 	Sim::AssemblyState state = getState(assembly);
@@ -721,6 +741,43 @@ void SleepStage::wakeAssemblyAndNeighbors(Assembly* assembly, int recurseDepth)
 	}
 }
 
+inline void SleepStage::changeAssemblyStateInline(Assembly* a, Sim::AssemblyState newState)
+{
+	Sim::AssemblyState oldState = getState(a);
+
+	AssemblySet& oldSet = stateToSet(oldState);
+	AssemblySet& newSet = stateToSet(newState);
+
+	oldSet.erase(a);
+
+	newSet.insert(a);
+
+	if ((oldState == Sim::SLEEPING_CHECKING || oldState == Sim::SLEEPING_DEEPLY) &&
+		newState != Sim::SLEEPING_CHECKING && newState != Sim::SLEEPING_DEEPLY) {
+		a->getAssemblyPrimitive()->getBody()->resetAccumulators();
+	}
+
+	if (newState == Sim::AWAKE) {
+		if (!a->downstreamOfStage(this)) {
+			static_cast<SimJobStage*>(getDownstream())->onAssemblyAdded(a);
+
+			if (!externalBodyForceAdded) {
+				const Primitive* primitive = a->getAssemblyPrimitiveConst();
+			}
+		}
+	}
+	else if (newState == Sim::SLEEPING_CHECKING || newState == Sim::SLEEPING_DEEPLY) {
+		a->getAssemblyPrimitive()->getBody()->setVelocity(Velocity::zero());
+
+		if (a->downstreamOfStage(this)) {
+			static_cast<SimJobStage*>(getDownstream())->onAssemblyRemoving(a);
+		}
+	}
+
+	resetSleepCount(a);
+	a->getSleepInfo()->state = newState;
+}
+
 // STUB: WEBSERVICE 0x1011ac80
 // STUB: ROBLOX 0x00644770
 void SleepStage::stepAssembliesRecursiveWakePending()
@@ -729,7 +786,7 @@ void SleepStage::stepAssembliesRecursiveWakePending()
 
 	toWake.resize(0);
 
-	for (AssemblySetIt it = recursiveWakePending.begin(); it != recursiveWakePending.end(); ++it) {
+	for (AssemblySetIt it = recursiveWakePending.begin(); recursiveWakePending.end() != it; ++it) {
 		toWake.push_back(*it);
 	}
 
@@ -737,7 +794,7 @@ void SleepStage::stepAssembliesRecursiveWakePending()
 		Assembly* assembly = toWake[i];
 
 		if (getState(assembly) != Sim::RECURSIVE_WAKE_PENDING) {
-			changeAssemblyState(assembly, Sim::RECURSIVE_WAKE_PENDING);
+			changeAssemblyStateInline(assembly, Sim::RECURSIVE_WAKE_PENDING);
 		}
 
 		wakeAssemblyAndNeighbors(assembly, 8);
