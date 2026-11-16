@@ -42,7 +42,7 @@ const G3D::Color3& Draw::selectColor()
 	return c;
 }
 
-// STUB: WEBSERVICE 0x101ec7c0
+// FUNCTION: WEBSERVICE 0x101ec7c0
 // STUB: ROBLOX 0x00670340
 void Draw::constraint(const Part& part, Adorn* adorn, int face, const G3D::Color3& controllerColor)
 {
@@ -63,14 +63,18 @@ void Draw::constraint(const Part& part, Adorn* adorn, int face, const G3D::Color
 
 	adorn->setObjectToWorldMatrix(newObject);
 
-	adorn->cylinderAlongX(0.2f, 1.0f, G3D::Color4(G3D::Color3::yellow(), 1.0f), G3D::Color4::clear());
+	float axis = 1.0f;
+	float radius = 0.2f;
+	adorn->cylinderAlongX(radius, axis, G3D::Color4(G3D::Color3::yellow(), 1.0f), G3D::Color4::clear());
 
 	if (surfaceType == ROTATE_V || surfaceType == ROTATE_P) {
-		adorn->cylinderAlongX(0.4f, 0.25f, G3D::Color4(controllerColor, 1.0f), G3D::Color4::clear());
+		float axis = 0.25f;
+		float radius = 0.4f;
+		adorn->cylinderAlongX(radius, axis, G3D::Color4(controllerColor, 1.0f), G3D::Color4::clear());
 	}
 }
 
-// STUB: WEBSERVICE 0x101ec940
+// FUNCTION: WEBSERVICE 0x101ec940
 // STUB: ROBLOX 0x006704c0
 void Draw::selectionBox(const Part& part, Adorn* adorn, const G3D::Color4& selectColor)
 {
@@ -82,8 +86,8 @@ void Draw::selectionBox(const Part& part, Adorn* adorn, const G3D::Color4& selec
 		int c2 = (axis + 1) % 3;
 		int c3 = (axis + 2) % 3;
 
-		for (int d2 = -1; d2 <= 1; d2 += 2) {
-			for (int d3 = -1; d3 <= 1; d3 += 2) {
+		for (int d2 = -1; d2 < 2; d2 += 2) {
+			for (int d3 = -1; d3 < 2; d3 += 2) {
 				G3D::Vector3 p0;
 				G3D::Vector3 p1;
 
