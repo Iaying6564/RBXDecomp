@@ -60,13 +60,11 @@ private:
 		// SYNTHETIC: WEBSERVICE 0x1016a4e0
 		// SYNTHETIC: ROBLOX 0x00474940
 		// RBX::View::MeshFactory<RBX::View::PBBMesh,4>::Variations::~Variations
-		// SYNTHETIC: WEBSERVICE 0x1016c7a0
 		// SYNTHETIC: ROBLOX 0x00474950
 		// RBX::View::MeshFactory<RBX::View::CylinderAlongXMesh,1>::Variations::~Variations
 		// SYNTHETIC: WEBSERVICE 0x1016c7f0
 		// SYNTHETIC: ROBLOX 0x00477d80
 		// RBX::View::MeshFactory<RBX::View::PBBMesh,4>::Variations::operator=
-		// SYNTHETIC: WEBSERVICE 0x1016c890
 		// SYNTHETIC: ROBLOX 0x005150d0
 		// RBX::View::MeshFactory<RBX::View::CylinderAlongXMesh,1>::Variations::operator=
 		// clang-format on
@@ -89,19 +87,15 @@ private:
 
 		bool operator<(const DecalKey& other) const
 		{
-			if (size.x != other.size.x) {
-				return size.x < other.size.x;
+			if (face < other.face) {
+				return true;
 			}
 
-			if (size.y != other.size.y) {
-				return size.y < other.size.y;
+			if (face > other.face) {
+				return false;
 			}
 
-			if (size.z != other.size.z) {
-				return size.z < other.size.z;
-			}
-
-			return face < other.face;
+			return size < other.size;
 		}
 	};
 
@@ -123,15 +117,15 @@ private:
 
 		bool operator<(const TextureKey& other) const
 		{
-			if (DecalKey::operator<(other)) {
+			if (studsPerTile < other.studsPerTile) {
 				return true;
 			}
 
-			if (studsPerTile.x != other.studsPerTile.x) {
-				return studsPerTile.x < other.studsPerTile.x;
+			if (studsPerTile > other.studsPerTile) {
+				return false;
 			}
 
-			return studsPerTile.y < other.studsPerTile.y;
+			return DecalKey::operator<(other);
 		}
 	};
 

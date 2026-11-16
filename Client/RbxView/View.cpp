@@ -81,8 +81,9 @@ void View::onWorkspaceDescendentAdded(boost::shared_ptr<Instance> descendent)
 	PartInstance* part = dynamic_cast<PartInstance*>(descendent.get());
 	if (part) {
 		new Part(shared_from(part), this);
+		return;
 	}
-	else if (PartInstance* parentPart = dynamic_cast<PartInstance*>(descendent->getParent())) {
+	if (PartInstance* parentPart = dynamic_cast<PartInstance*>(descendent->getParent())) {
 		RBX::Texture* texture = dynamic_cast<RBX::Texture*>(descendent.get());
 		if (texture) {
 			new Texture(*texture, *parentPart, this);
@@ -113,8 +114,8 @@ void View::suppressSkybox()
 	renderLibScene->colorClearValue = clearColor;
 }
 
-// STUB: WEBSERVICE 0x1016b950
-// STUB: ROBLOX 0x00476e70
+// FUNCTION: WEBSERVICE 0x1016b950
+// FUNCTION: ROBLOX 0x00476e70
 void View::updateLighting()
 {
 	if (!lightingValid) {
@@ -123,11 +124,11 @@ void View::updateLighting()
 		if (lighting->isSkySuppressed()) {
 			sky = NULL;
 		}
-		else if (sky.isNull()) {
+		else if (sky == NULL) {
 			try {
 				sky = Sky::getG3DSky(lighting->sky.get());
 			}
-			catch (const G3D::GImage::Error& e) {
+			catch (G3D::GImage::Error& e) {
 				StandardOut::singleton()->print(MESSAGE_ERROR, "Failed to load sky box. %s", e.reason.c_str());
 			}
 			catch (...) {
