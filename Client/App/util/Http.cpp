@@ -52,7 +52,7 @@ public:
 };
 
 // SIZE 0x4
-class String_sink : public boost::iostreams::device<boost::iostreams::output>
+struct String_sink : public boost::iostreams::device<boost::iostreams::output>
 {
 public:
 	std::string& s; // 0x00
@@ -313,8 +313,10 @@ static void httpGetPost(
 			boost::iostreams::copy(data, out);
 		}
 		catch (boost::iostreams::gzip_error& e) {
+			const int error = e.error();
+			const int zlibError = e.zlib_error_code();
 			throw std::runtime_error(
-				G3D::format("Upload GZip error %d, ZLib error %d, '%s'", e.error(), e.zlib_error_code(), url.c_str())
+				G3D::format("Upload GZip error %d, ZLib error %d, \"%s\"", error, zlibError, url.c_str())
 			);
 		}
 
@@ -335,7 +337,8 @@ static void httpGetPost(
 				ThrowIfFailure(false, "HttpAddRequestHeaders failed");
 			}
 
-			std::string contentLastHeader = G3D::format("Roblox-Content-Last: %d\r\n", uploadData[uploadSize - 1]);
+			std::string contentLastHeader =
+				G3D::format("Roblox-Content-Last: %d\r\n", uploadData.c_str()[uploadSize - 1]);
 			if (!HttpAddRequestHeaders(
 					request, contentLastHeader.c_str(), contentLastHeader.size(), HTTP_ADDREQ_FLAG_ADD
 				)) {
@@ -352,12 +355,14 @@ static void httpGetPost(
 			}
 		}
 
-		INTERNET_BUFFERS buffer = {0};
-		buffer.dwStructSize = sizeof(INTERNET_BUFFERS);
-		buffer.dwBufferTotal = uploadSize;
+		{
+			INTERNET_BUFFERS buffer = {};
+			buffer.dwStructSize = sizeof(INTERNET_BUFFERS);
+			buffer.dwBufferTotal = uploadSize;
 
-		if (!HttpSendRequestEx(request, &buffer, NULL, 0, 0)) {
-			throw std::runtime_error("HttpSendRequestEx failed");
+			if (!HttpSendRequestEx(request, &buffer, NULL, 0, 0)) {
+				throw std::runtime_error("HttpSendRequestEx failed");
+			}
 		}
 
 		try {
@@ -370,7 +375,7 @@ static void httpGetPost(
 				throw std::runtime_error("Failed to upload content");
 			}
 		}
-		catch (...) {
+		catch (std::exception&) {
 			HttpEndRequest(request, NULL, 0, 0);
 			throw;
 		}
@@ -409,12 +414,15 @@ static void httpGetPost(
 			boost::iostreams::copy(in, String_sink(response));
 		}
 		catch (boost::iostreams::gzip_error& e) {
+			const int error = e.error();
+			const int zlibError = e.zlib_error_code();
 			throw std::runtime_error(
-				G3D::format("GZip error %d, ZLib error %d, '%s'", e.error(), e.zlib_error_code(), url.c_str())
+				G3D::format("GZip error %d, ZLib error %d, \"%s\"", error, zlibError, url.c_str())
 			);
 		}
 		catch (boost::iostreams::zlib_error& e) {
-			throw std::runtime_error(G3D::format("ZLib error %d, '%s'", e.error(), url.c_str()));
+			const int error = e.error();
+			throw std::runtime_error(G3D::format("ZLib error %d, \"%s\"", error, url.c_str()));
 		}
 
 		if (statusCode != 200) {
