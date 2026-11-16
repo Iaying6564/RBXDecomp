@@ -6,6 +6,7 @@
 #include "util/Math.h"
 #include "util/Name.h"
 #include "v8datamodel/GeometryService.h"
+#include "v8datamodel/PartInstance.h"
 #include "v8kernel/Body.h"
 #include "v8kernel/SimBody.h"
 #include "v8world/Geometry.h"
@@ -116,8 +117,8 @@ void Running::onComputeForce(const float dt)
 	}
 }
 
-// STUB: WEBSERVICE 0x10106a80
-// STUB: ROBLOX 0x00641100
+// FUNCTION: WEBSERVICE 0x10106a80
+// FUNCTION: ROBLOX 0x00641100
 bool Running::isFacingLadder(bool buffered)
 {
 	Body* body = humanoid->getTorsoBody();
@@ -146,7 +147,10 @@ bool Running::isFacingLadder(bool buffered)
 		Ray rayInPart;
 		float height = i / 7.0f;
 		rayInPart.origin = Vector3(0.0f, height - 3.0f, 0.0f);
-		rayInPart.direction = cf.lookVector() * 2.0f;
+		G3D::Vector3 dir = cf.lookVector() * 2.0f;
+		rayInPart.direction.x = dir.x;
+		rayInPart.direction.y = dir.y;
+		rayInPart.direction.z = dir.z;
 
 		Ray caster;
 		caster.origin = cf.translation + rayInPart.origin;
@@ -213,7 +217,7 @@ void Running::render3dAdorn(Adorn* adorn)
 {
 }
 
-// STUB: WEBSERVICE 0x10106f80
+// FUNCTION: WEBSERVICE 0x10106f80
 // STUB: ROBLOX 0x00641600
 void Running::updateGoals(Controller& controller)
 {
@@ -228,10 +232,12 @@ void Running::updateGoals(Controller& controller)
 
 		if (isFacingLadder(true)) {
 			climbing = true;
-			float speed = desiredVelocity.magnitude();
-			desiredVelocity.x *= 0.7f;
-			desiredVelocity.y = speed * 0.7f;
-			desiredVelocity.z *= 0.7f;
+			float climbSpeed = desiredVelocity.magnitude() * 0.7f;
+			float scaledX = desiredVelocity.x * 0.7f;
+			float scaledZ = desiredVelocity.z * 0.7f;
+			desiredVelocity.x = scaledX;
+			desiredVelocity.y = climbSpeed;
+			desiredVelocity.z = scaledZ;
 		}
 	}
 
