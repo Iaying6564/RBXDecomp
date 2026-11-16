@@ -69,7 +69,6 @@ set(OPENRBX_APP_SOURCES
   Client/App/gui/GuiDraw.cpp
   Client/App/gui/MenuItem.cpp
   Client/App/gui/ProfanityFilter.cpp
-  Client/App/gui/ScoreHud.cpp
   Client/App/gui/Widget.cpp
   Client/App/humanoid/Humanoid.cpp
   Client/App/reflection/reflection_function.cpp
@@ -81,7 +80,6 @@ set(OPENRBX_APP_SOURCES
   Client/App/v8tree/enumproperty.cpp
   Client/App/v8xml/XmlElement.cpp
   Client/App/v8xml/SerializerV2.cpp
-  Client/App/v8xml/XmlSerializer.cpp
   Client/App/util/IRenderable.cpp
   Client/App/v8tree/Instance.cpp
   Client/App/v8tree/Verb.cpp
@@ -102,6 +100,7 @@ set(OPENRBX_APP_SOURCES
   Client/App/util/NormalId.cpp
   Client/App/util/Quaternion.cpp
   Client/App/util/ContentProvider.cpp
+  Client/App/v8xml/XmlSerializer.cpp
   Client/App/util/Utilities.cpp
   Client/App/util/Profiling.cpp
   Client/App/util/Rect.cpp
@@ -235,6 +234,7 @@ set(OPENRBX_APP_SOURCES
   Client/App/v8datamodel/ToolsPart.cpp
   Client/App/v8datamodel/UserController.cpp
   Client/App/v8datamodel/Value.cpp
+  Client/App/gui/ScoreHud.cpp
   Client/App/v8datamodel/Visit.cpp
   Client/App/v8datamodel/Unknown005d2700.cpp
   Client/App/v8datamodel/factoryregistration.cpp
@@ -322,7 +322,6 @@ set(OPENRBX_RBXVIEW_SOURCES
   Client/RbxView/TorsoMesh.cpp
   Client/RbxView/View.cpp
   Client/RbxView/WedgeMesh.cpp
-  Client/RbxView/Part.cpp
 )
 set(OPENRBX_RBXVIEWNEW_SOURCES
   Client/Rendering/RenderLibNew/BevelMesh.cpp
@@ -356,7 +355,6 @@ set(OPENRBX_RENDERLIB_SOURCES
   Client/Rendering/RenderLib/DepthBlur.cpp
   Client/Rendering/RenderLib/EffectSettings.cpp
   Client/Rendering/RenderLib/Material.cpp
-  Client/Rendering/RenderLib/Mesh.cpp
   Client/Rendering/RenderLib/Profiler.cpp
   Client/Rendering/RenderLib/RenderScene.cpp
   Client/Rendering/RenderLib/RenderStats.cpp
@@ -382,10 +380,16 @@ set(OPENRBX_APPDRAW_SOURCES
   Client/Rendering/AppDraw/AdornG3D.cpp
   Client/Rendering/AppDraw/Draw.cpp
   Client/Rendering/AppDraw/DrawAdorn.cpp
-  Client/Rendering/AppDraw/DrawPrimitives.cpp
   Client/Rendering/AppDraw/Fonts.cpp
   Client/Rendering/AppDraw/HitTest.cpp
   Client/Rendering/AppDraw/Textures.cpp
+)
+
+# DrawPrimitives.cpp alone, so its copy of the shared template instantiations
+# reaches the link before the app block's. See the note beside its
+# add_engine_library.
+set(OPENRBX_APPDRAW_HEAD_SOURCES
+  Client/Rendering/AppDraw/DrawPrimitives.cpp
 )
 
 set(OPENRBX_ENGINE_INCLUDE_DIRS
@@ -480,6 +484,18 @@ list(SUBLIST OPENRBX_APP_SOURCES 0 ${OPENRBX_APP_REFLECTION_INDEX} OPENRBX_APP_P
 list(SUBLIST OPENRBX_APP_SOURCES ${OPENRBX_APP_REFLECTION_INDEX} ${OPENRBX_APP_REFLECTION_LENGTH} OPENRBX_APP_PART_app_reflection)
 list(SUBLIST OPENRBX_APP_SOURCES ${OPENRBX_APP_SIGNAL_INDEX} 1 OPENRBX_APP_PART_app_signal)
 list(SUBLIST OPENRBX_APP_SOURCES ${OPENRBX_APP_TAIL_INDEX} -1 OPENRBX_APP_PART_app_tail)
+
+# DrawPrimitives.cpp, compiled with appdraw's own flags but linked ahead of app.
+# It instantiates Rect2D::xyxy and the Array comparator family; the linker keeps
+# the FIRST object that defines a duplicate COMDAT name, and app's Hopper.cpp
+# reaches it with a 117-byte /fp:fast body where appdraw's is the original's
+# 155-byte one. Linking appdraw first as a block is not enough, because app
+# precedes it, so this one source has to come out.
+add_engine_library(appdraw_head
+  DEFINITIONS _RELEASE
+  OPTIONS /O2 /GS-
+  SOURCES ${OPENRBX_APPDRAW_HEAD_SOURCES}
+)
 
 foreach(part app app_reflection app_signal app_tail)
   add_engine_library(${part}
@@ -694,6 +710,13 @@ foreach(src ${OPENRBX_APP_CLIENT_SOURCES})
 endforeach()
 
 
+# The original signal connection COMDAT comes from Part, before Replicator.
+add_engine_library(rbxview_part
+  DEFINITIONS _RELEASE
+  OPTIONS /O2 /Ob2 /Oi /Oy /GF /GS-
+  SOURCES Client/RbxView/Part.cpp
+)
+
 add_engine_library(network
   OPTIONS /O2
   SOURCES ${OPENRBX_NETWORK_SOURCES} ${OPENRBX_RAKNET_SOURCES}
@@ -709,6 +732,12 @@ add_engine_library(network_client
   SOURCES ${OPENRBX_NETWORK_CLIENT_SOURCES}
 )
 list(REMOVE_ITEM OPENRBX_ENGINE_LIBRARIES network_client)
+
+# Keep Mesh's original RenderLib COMDATs ahead of the copies in BrickMesh.
+add_engine_library(renderlib_mesh
+  OPTIONS /O2 /Wp64
+  SOURCES Client/Rendering/RenderLib/Mesh.cpp
+)
 
 add_engine_library(rbxview
   DEFINITIONS _RELEASE
@@ -800,13 +829,40 @@ set(OPENRBX_WEBSERVICE_SOURCES
   Client/win/VersionInfo.cpp
 )
 
+set(OPENRBX_WEBSERVICE_BUILD_SOURCES ${OPENRBX_WEBSERVICE_SOURCES})
+if (MSVC)
+  set(OPENRBX_WEBSERVICE_PCH_FILE "${CMAKE_CURRENT_BINARY_DIR}/WebService.pch")
+  set(OPENRBX_WEBSERVICE_BUILD_SOURCES)
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/webservice_pch")
+  # Use target-local sources so the shared Client/win files keep their Roblox
+  # compile options and dependencies. Include them at their real source paths.
+  foreach(webservice_source IN LISTS OPENRBX_WEBSERVICE_SOURCES)
+    get_filename_component(webservice_source_name "${webservice_source}" NAME)
+    set(webservice_wrapper "${CMAKE_CURRENT_BINARY_DIR}/webservice_pch/${webservice_source_name}")
+    file(CONFIGURE OUTPUT "${webservice_wrapper}" CONTENT
+      "#include \"StdAfx.h\"\n#include \"${PROJECT_SOURCE_DIR}/${webservice_source}\"\n" @ONLY)
+    list(APPEND OPENRBX_WEBSERVICE_BUILD_SOURCES "${webservice_wrapper}")
+  endforeach()
+  set_source_files_properties(${OPENRBX_WEBSERVICE_BUILD_SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS OPENRBX_WEBSERVICE_PCH
+    COMPILE_OPTIONS "/O2;/GL;/YuStdAfx.h;/Fp${OPENRBX_WEBSERVICE_PCH_FILE}"
+    OBJECT_DEPENDS "${OPENRBX_WEBSERVICE_PCH_FILE}")
+  set_source_files_properties(WebService/StdAfx.cpp PROPERTIES
+    COMPILE_DEFINITIONS OPENRBX_WEBSERVICE_PCH
+    COMPILE_OPTIONS "/O2;/GL;/YcStdAfx.h;/Fp${OPENRBX_WEBSERVICE_PCH_FILE}"
+    OBJECT_OUTPUTS "${OPENRBX_WEBSERVICE_PCH_FILE}")
+  # Keep the producer after its consumers in the link, before the native ABI
+  # helper. Earlier placement selects different CRT implementations.
+  list(APPEND OPENRBX_WEBSERVICE_BUILD_SOURCES WebService/StdAfx.cpp)
+endif()
+
 add_library(webservice SHARED
-  ${OPENRBX_WEBSERVICE_SOURCES}
+  ${OPENRBX_WEBSERVICE_BUILD_SOURCES}
   util/decomp.cpp
 )
 openrbx_compile_defaults(webservice)
 target_compile_definitions(webservice PRIVATE ${OPENRBX_COMMON_DEFINITIONS} _USRDLL _CRT_SECURE_NO_WARNINGS
-  _ATL_NO_COM_SUPPORT)
+  _ATL_NO_COM_SUPPORT ATL_CRITICAL_ISAPI_ERROR_LOGONLY)
 reccmp_add_target(webservice ID WEBSERVICE)
 
 target_include_directories(webservice PRIVATE
@@ -943,7 +999,7 @@ target_include_directories(roblox PRIVATE
 )
 
 set(OPENRBX_CLIENT_ENGINE_LIBRARIES)
-foreach(lib rbxview renderlib rbxviewnew renderlibnew network_client app_client_objects appdraw_rbxgfx appdraw appdraw_client lua)
+foreach(lib rbxview rbxview_part renderlib renderlib_mesh rbxviewnew renderlibnew network_client app_client_objects appdraw_head app appdraw_rbxgfx appdraw appdraw_client lua)
   if (lib STREQUAL "app_client_objects")
     list(APPEND OPENRBX_CLIENT_ENGINE_LIBRARIES ${OPENRBX_APP_CLIENT_OBJECTS})
   elseif (TARGET ${lib})
@@ -1008,12 +1064,16 @@ endif()
 
 option(OPENRBX_KEEP_UNREFERENCED "Keep unreferenced functions so reccmp can compare them" ON)
 if (OPENRBX_KEEP_UNREFERENCED)
-  target_link_options(webservice PRIVATE "/OPT:NOREF,ICF")
   target_link_options(roblox PRIVATE "/OPT:NOREF,ICF")
 else()
-  target_link_options(webservice PRIVATE "/OPT:REF,ICF")
   target_link_options(roblox PRIVATE "/OPT:REF,ICF")
 endif()
+
+# The original WebService.dll carries no unreferenced members, so /OPT:REF is
+# what reproduces its observed function and data layout.  Keeping them inserts
+# the dead bodies ahead of every later function, and reccmp pairs same-named
+# functions by address order, so the comparison lands on the wrong copies.
+target_link_options(webservice PRIVATE "/OPT:REF,ICF")
 
 set_property(TARGET webservice roblox PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
