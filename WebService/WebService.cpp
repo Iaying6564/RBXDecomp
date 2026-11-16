@@ -73,7 +73,7 @@ public:
 		RBX::startListening(standardOut, this);
 	}
 
-	// STUB: WEBSERVICE 0x1000d110
+	// FUNCTION: WEBSERVICE 0x1000d110
 	~StandardOutLog()
 	{
 		boost::mutex::scoped_lock lock(RBX::StandardOut::singleton()->sync);
